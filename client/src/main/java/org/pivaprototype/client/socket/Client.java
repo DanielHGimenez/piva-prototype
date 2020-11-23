@@ -18,13 +18,12 @@ import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
 import java.security.InvalidKeyException;
-import java.security.KeyPair;
 import java.security.NoSuchAlgorithmException;
 import java.security.PublicKey;
 import java.util.Objects;
 import java.util.function.Consumer;
 
-public class SocketConnector {
+public class Client {
 
     public static final int MAX_TRIES = 3;
     public static final char MAX_SIMULTANEOUS_SESSIONS = 10;
@@ -33,14 +32,14 @@ public class SocketConnector {
     private String ip;
     private Integer port;
     private Socket socket;
-    private SocketSession[] sessions;
+    private Session[] sessions;
     private Crypt clientCrypt;
     private Crypt serverCrypt;
 
-    public SocketConnector(String ip, Integer port) {
+    public Client(String ip, Integer port) {
         this.ip = ip;
         this.port = port;
-        this.sessions = new SocketSession[MAX_SIMULTANEOUS_SESSIONS];
+        this.sessions = new Session[MAX_SIMULTANEOUS_SESSIONS];
         try {
             this.clientCrypt = new Crypt(KeyGenerator.generatePair(KEY_SIZE));
             initializeConnection();
@@ -82,7 +81,7 @@ public class SocketConnector {
                 Message message = new Message(sessionId, payload);
                 socket.getOutputStream().write(ByteAssembler.serialize(message));
 
-                sessions[sessionId] = new SocketSession(sessionId, onSucess);
+                sessions[sessionId] = new Session(sessionId, onSucess);
 
             }
         }

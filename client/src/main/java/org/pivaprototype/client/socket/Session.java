@@ -4,12 +4,12 @@ import org.pivaprototype.socket.payload.Response;
 
 import java.util.function.Consumer;
 
-public class SocketSession {
+public class Session {
 
     private Integer id;
     private Consumer<Response> onSucess;
 
-    public SocketSession(Integer id, Consumer<Response> onSucess) {
+    public Session(Integer id, Consumer<Response> onSucess) {
         this.id = id;
         this.onSucess = onSucess;
     }
