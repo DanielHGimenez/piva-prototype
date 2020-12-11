@@ -20,6 +20,8 @@ import java.net.Socket;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.security.PublicKey;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Objects;
 import java.util.function.Consumer;
 
@@ -33,6 +35,8 @@ public class Client {
     private Integer port;
     private Socket socket;
     private Session[] sessions;
+    private Listener listener;
+    private Thread listenerThread;
     private Crypt clientCrypt;
     private Crypt serverCrypt;
 
@@ -49,7 +53,7 @@ public class Client {
         }
     }
 
-    public void sendRequest(Request request, Consumer<Response> onSucess)
+    public <R, P> void sendRequest(Request<P> request, Consumer<Response<R>> onSucess)
             throws IOException, CantSendRequestException {
 
         if (!this.status.equals(ConnectionStatus.STARTED))
@@ -59,29 +63,26 @@ public class Client {
 
             if (Objects.isNull(sessions[sessionId])) {
 
-                ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-                ObjectOutputStream objectOutputStream = new ObjectOutputStream(byteArrayOutputStream);
-                objectOutputStream.writeObject(request);
+//                try {
+//                    payload = this.serverCrypt.encrypt(payload);
+//                } catch (
+//                    NoSuchPaddingException |
+//                    NoSuchAlgorithmException |
+//                    InvalidKeyException |
+//                    BadPaddingException |
+//                    IllegalBlockSizeException e
+//                ) {
+//                    e.printStackTrace();
+//                    throw new CantSendRequestException();
+//                }
 
-                byte[] payload = byteArrayOutputStream.toByteArray();
+                Message<Request<P>> message = new Message<>(sessionId, request);
+                ObjectOutputStream objectOutputStream = new ObjectOutputStream(socket.getOutputStream());
 
-                try {
-                    payload = this.serverCrypt.encrypt(payload);
-                } catch (
-                    NoSuchPaddingException |
-                    NoSuchAlgorithmException |
-                    InvalidKeyException |
-                    BadPaddingException |
-                    IllegalBlockSizeException e
-                ) {
-                    e.printStackTrace();
-                    throw new CantSendRequestException();
-                }
-
-                Message message = new Message(sessionId, payload);
-                socket.getOutputStream().write(ByteAssembler.serialize(message));
+                objectOutputStream.writeObject(message);
 
                 sessions[sessionId] = new Session(sessionId, onSucess);
+                break;
 
             }
         }
@@ -90,9 +91,10 @@ public class Client {
     private void initializeConnection() throws CantInitializeConnectionException {
         try {
             connectSocket();
-            exchangeKeys();
+//            exchangeKeys();
         }
-        catch (IOException | CantSendRequestException exception) {
+        catch (IOException exception) {
+            exception.printStackTrace();
             throw new CantInitializeConnectionException();
         }
     }
@@ -101,6 +103,8 @@ public class Client {
         if (!Objects.isNull(socket)) {
             socket.close();
         }
+
+        socket = new Socket(ip, port);
 
         int triesCounter = 1;
         while (!socket.isConnected()) {
@@ -114,10 +118,17 @@ public class Client {
                 triesCounter++;
             }
         }
+        status = ConnectionStatus.STARTED;
+        System.out.println("Connection started");
+        this.listener = new Listener(socket, sessions);
+        System.out.println("Listener created");
+        this.listenerThread = new Thread(listener);
+        listenerThread.start();
+        System.out.println("Listener thread started");
     }
 
     private void exchangeKeys() throws IOException, CantSendRequestException {
-        sendRequest(new Request("keys", clientCrypt.getPublicKey().getEncoded()), (Response res) -> {
+        sendRequest(new Request<byte[]>("keys", clientCrypt.getPublicKey().getEncoded()), (Response<byte[]> res) -> {
             try {
                 PublicKey publicKey = new RSAPublicKeyImpl(res.getData());
                 this.serverCrypt = new Crypt(publicKey, null);
