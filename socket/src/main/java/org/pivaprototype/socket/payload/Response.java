@@ -1,11 +1,13 @@
 package org.pivaprototype.socket.payload;
 
-public class Response {
+import java.io.Serializable;
+
+public class Response<T> implements Serializable {
 
     private static final int DATA_MAX_LENGTH = 4950;
 
     private int status;
-    private byte[] data;
+    private T data;
 
     public int getStatus() {
         return status;
@@ -14,10 +16,10 @@ public class Response {
         this.status = status;
     }
 
-    public byte[] getData() {
+    public T getData() {
         return data;
     }
-    public void setData(byte[] data) {
+    public void setData(T data) {
         this.data = data;
     }
 
